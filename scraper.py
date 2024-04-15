@@ -31,7 +31,7 @@ def get_database():
    return client['Listings']
 
 db = get_database()
-items =['manga']
+items =['manga', 'nintendo']
 
 while(True):
     for listing in items:
@@ -51,18 +51,42 @@ while(True):
 
         current_item = db[listing]
 
+        # If we want to report a new batch has been listed, we need a lock for it
+        batchlock = 0
+
         for i in listingdata:
             price = i.get('price')
-            if bool(current_item.find_one({"_id": i.get('id')})) == True:
-                break
+
+            # Batch Listings
+            if listing == "nintendo":
+                if bool(current_item.find_one({"_id": i.get('id')})) == True:
+                    batchlock = 0
+                    break
+                else:
+                    item = {
+                        "_id": i.get('id'),
+                        "name": i.get('name'),
+                        "price": price,
+                    }
+                    batchlock += 1
+                    if batchlock == 1:
+                        print("!!!New Batch Added!!!     Item: " + listing)
+                        send_notification(listing.upper(),"New batch of listings has been posted." + "\nhttps://www.goodwillfinds.com/search/?q=nintendo")
+                    current_item.insert_one(item)
+            
+            
+            # Normal Listings
             else:
-                item = {
-                    "_id": i.get('id'),
-                    "name": i.get('name'),
-                    "price": price,
-                }
-                print("!!!New Listing Added!!!     Item: " + listing)
-                send_notification(listing.upper(), "Price: " + str(price) + "\nName: " + i.get('name') + "\nPrice: " + price + "\n\nhttps://www.goodwillfinds.com/search/?q=manga")
-                current_item.insert_one(item)
+                if bool(current_item.find_one({"_id": i.get('id')})) == True:
+                    break
+                else:
+                    item = {
+                        "_id": i.get('id'),
+                        "name": i.get('name'),
+                        "price": price,
+                    }
+                    print("!!!New Listing Added!!!     Item: " + listing)
+                    send_notification(listing.upper(), "Price: " + str(price) + "\nName: " + i.get('name') + "\nPrice: " + price + "\n\nhttps://www.goodwillfinds.com/search/?q=manga")
+                    current_item.insert_one(item)
     print("Nothing yet...")
     time.sleep(60)
